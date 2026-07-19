@@ -4,8 +4,8 @@ World Cup 2026 Monte Carlo simulator.
 Elo ratings computed over the full history of international football
 (martj42/international_results, CC0), an empirical draw model, a backtest on
 the 2026 World Cup matches already played, and a Monte Carlo simulation of
-the remaining bracket: England vs Argentina (semi, 15 Jul) and the final
-against Spain (19 Jul).
+the final: Spain vs Argentina (19 Jul). Ratings include the semifinal
+(England 1-2 Argentina) and the bronze final (France 4-6 England).
 
 Run:  python wc_sim.py
 """
@@ -168,7 +168,7 @@ print(f"\nBacktest on WC 2026 ({n} matches): "
       f"log loss {logloss:.4f} (uniform baseline {baseline:.4f})")
 
 # ------------------------------------------------------------- simulation --
-elo = {t: ratings[t] for t in ("Spain", "England", "Argentina")}
+elo = {t: ratings[t] for t in ("Spain", "Argentina")}
 print("\nCurrent Elo ratings:")
 for t, r in sorted(elo.items(), key=lambda x: -x[1]):
     print(f"  {t:<10} {r:7.0f}")
@@ -187,21 +187,12 @@ def sim_knockout(team_a: str, team_b: str, size: int) -> np.ndarray:
     a_wins_et = RNG.random(size) < p_a_et
     return a_wins_90 | (drawn & a_wins_et)
 
-eng_to_final = sim_knockout("England", "Argentina", N_SIMS)
-spain_beats_eng = ~sim_knockout("England", "Spain", N_SIMS)
 spain_beats_arg = sim_knockout("Spain", "Argentina", N_SIMS)
-spain_champ = (eng_to_final & spain_beats_eng) | (~eng_to_final & spain_beats_arg)
-eng_champ = eng_to_final & ~spain_beats_eng
-arg_champ = ~eng_to_final & ~spain_beats_arg
-
-p_semi_eng = eng_to_final.mean()
 champ = {
-    "Spain": spain_champ.mean(),
-    "England": eng_champ.mean(),
-    "Argentina": arg_champ.mean(),
+    "Spain": spain_beats_arg.mean(),
+    "Argentina": 1 - spain_beats_arg.mean(),
 }
-print(f"\nSemifinal tonight:  England {p_semi_eng:.1%}  vs  Argentina {1 - p_semi_eng:.1%}")
-print("Championship probabilities:")
+print("\nChampionship probabilities (final: Spain vs Argentina):")
 for t, p in sorted(champ.items(), key=lambda x: -x[1]):
     print(f"  {t:<10} {p:6.1%}")
 
@@ -219,7 +210,7 @@ ax.set_xlim(0, max(vals) * 1.22)
 ax.set_title("Who wins the 2026 World Cup?", fontsize=15, fontweight="bold",
              color=INK, loc="left", pad=14)
 ax.text(0, 1.02, f"Monte Carlo simulation, {N_SIMS:,} runs · Elo model · "
-                 f"before the England vs Argentina semifinal",
+                 f"before the final, 19 Jul 2026",
         transform=ax.transAxes, fontsize=9, color=INK_2)
 ax.set_axisbelow(True)
 ax.grid(axis="y", visible=False)
@@ -279,30 +270,32 @@ fig.savefig(OUT / "calibration.png", facecolor=SURFACE)
 plt.close(fig)
 
 # ------------------------------------------------------------- prediction --
-semi = predict(elo["England"] - elo["Argentina"])
-final_v_eng = predict(elo["Spain"] - elo["England"])
-final_v_arg = predict(elo["Spain"] - elo["Argentina"])
+final_90 = predict(elo["Spain"] - elo["Argentina"])
 
 with open(OUT / "predictions.md", "w", encoding="utf-8") as f:
-    f.write(f"""# World Cup 2026 — model predictions (published 15 Jul 2026)
+    f.write(f"""# World Cup 2026 — model predictions
 
 Elo + Monte Carlo ({N_SIMS:,} simulations), trained on {len(df):,} internationals
-since 1872. Code and data in this repo; nothing edited after the matches.
+since 1872. Code and data in this repo; each section is timestamped when
+published and never edited after the match is played.
 
-## Semifinal, 15 Jul 2026: England vs Argentina
+## Published 19 Jul 2026, before the final: Spain vs Argentina
 | outcome | probability |
 |---|---|
-| England win (in 90') | {semi[0]:.1%} |
-| Draw after 90' | {semi[1]:.1%} |
-| Argentina win (in 90') | {semi[2]:.1%} |
-| **England reach the final** | **{p_semi_eng:.1%}** |
+| Spain win (in 90') | {final_90[0]:.1%} |
+| Draw after 90' | {final_90[1]:.1%} |
+| Argentina win (in 90') | {final_90[2]:.1%} |
+| **Spain champions** | **{champ['Spain']:.1%}** |
+| **Argentina champions** | **{champ['Argentina']:.1%}** |
 
-## Final, 19 Jul 2026 (Spain qualified)
-| champion | probability |
-|---|---|
-| Spain | {champ['Spain']:.1%} |
-| England | {champ['England']:.1%} |
-| Argentina | {champ['Argentina']:.1%} |
+Ratings include the semifinal (England 1-2 Argentina) and the bronze final
+(France 4-6 England).
+
+## Track record (published 15 Jul 2026, before the second semifinal)
+- Semifinal, England vs Argentina: model gave Argentina 62.4% to reach the
+  final. Result: England 1-2 Argentina. Correct call.
+- Championship probabilities as of 15 Jul: Spain 62.3%, Argentina 26.2%,
+  England 11.5%.
 
 ## Model honesty check
 Backtest on the {n} WC 2026 matches already played:
