@@ -95,10 +95,15 @@ history: dict[str, list[tuple[pd.Timestamp, float]]] = {
 }
 # per-match records for the modern era, used to fit the draw model and backtest
 records = []  # (date, tournament, elo_diff_effective, outcome, home, away)
+# ratings frozen the instant before the final, so the published forecast is
+# reproducible even after the final result enters the data
+pre_final_elo: dict[str, float] = {}
 
 for row in df.itertuples(index=False):
     rh = ratings.get(row.home_team, 1500.0)
     ra = ratings.get(row.away_team, 1500.0)
+    if row.tournament == "FIFA World Cup" and str(row.date.date()) == "2026-07-19":
+        pre_final_elo = {row.home_team: rh, row.away_team: ra}
     diff = rh - ra + (0 if row.neutral else HOME_ADV)
     we = 1 / (1 + 10 ** (-diff / 400))
 
@@ -168,8 +173,10 @@ print(f"\nBacktest on WC 2026 ({n} matches): "
       f"log loss {logloss:.4f} (uniform baseline {baseline:.4f})")
 
 # ------------------------------------------------------------- simulation --
-elo = {t: ratings[t] for t in ("Spain", "Argentina")}
-print("\nCurrent Elo ratings:")
+# use the ratings as they stood before the final, so the championship
+# probability reproduces the forecast published before kickoff
+elo = pre_final_elo
+print("\nElo ratings going into the final:")
 for t, r in sorted(elo.items(), key=lambda x: -x[1]):
     print(f"  {t:<10} {r:7.0f}")
 
@@ -192,9 +199,13 @@ champ = {
     "Spain": spain_beats_arg.mean(),
     "Argentina": 1 - spain_beats_arg.mean(),
 }
-print("\nChampionship probabilities (final: Spain vs Argentina):")
+print("\nChampionship probabilities forecast before the final (Spain vs Argentina):")
 for t, p in sorted(champ.items(), key=lambda x: -x[1]):
     print(f"  {t:<10} {p:6.1%}")
+top_pick = max(champ, key=champ.get)
+print(f"\nResult: Spain 1-0 Argentina (Ferran Torres, 106'). "
+      f"Model's top pick was {top_pick} at {champ[top_pick]:.1%}. "
+      f"{'Correct.' if top_pick == 'Spain' else 'Wrong.'}")
 
 # ----------------------------------------------------------------- charts --
 # 1. championship probability bars
@@ -210,7 +221,7 @@ ax.set_xlim(0, max(vals) * 1.22)
 ax.set_title("Who wins the 2026 World Cup?", fontsize=15, fontweight="bold",
              color=INK, loc="left", pad=14)
 ax.text(0, 1.02, f"Monte Carlo simulation, {N_SIMS:,} runs · Elo model · "
-                 f"before the final, 19 Jul 2026",
+                 f"forecast before the final · result: Spain 1-0 Argentina",
         transform=ax.transAxes, fontsize=9, color=INK_2)
 ax.set_axisbelow(True)
 ax.grid(axis="y", visible=False)
@@ -279,7 +290,7 @@ Elo + Monte Carlo ({N_SIMS:,} simulations), trained on {len(df):,} international
 since 1872. Code and data in this repo; each section is timestamped when
 published and never edited after the match is played.
 
-## Published 19 Jul 2026, before the final: Spain vs Argentina
+## Forecast published 19 Jul 2026, before the final: Spain vs Argentina
 | outcome | probability |
 |---|---|
 | Spain win (in 90') | {final_90[0]:.1%} |
@@ -291,6 +302,10 @@ published and never edited after the match is played.
 Ratings include the semifinal (England 1-2 Argentina) and the bronze final
 (France 4-6 England).
 
+**Result: Spain 1-0 Argentina** (Ferran Torres, 106', extra time). The model's
+top pick won. Across the knockouts it called both the semifinal and the final
+correctly.
+
 ## Track record (published 15 Jul 2026, before the second semifinal)
 - Semifinal, England vs Argentina: model gave Argentina 62.4% to reach the
   final. Result: England 1-2 Argentina. Correct call.
@@ -298,7 +313,7 @@ Ratings include the semifinal (England 1-2 Argentina) and the bronze final
   England 11.5%.
 
 ## Model honesty check
-Backtest on the {n} WC 2026 matches already played:
+Backtest on the {n} WC 2026 matches played (whole tournament):
 accuracy {hit / n:.1%}, Brier {brier:.4f}, log loss {logloss:.4f}
 (uniform-guess baseline {baseline:.4f}).
 """)

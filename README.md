@@ -1,9 +1,11 @@
 # Can a simple model call the World Cup?
 
 An Elo + Monte Carlo forecast of the 2026 FIFA World Cup, published **before**
-the matches were played. Predictions are timestamped in
+each match was played. Predictions are timestamped in
 [`outputs/predictions.md`](outputs/predictions.md) and nothing is edited after
-the results; the retro section below is filled in after the final.
+the results.
+
+**The model called both the semifinal and the final correctly.**
 
 ## Headline prediction (published 19 Jul 2026, before the final)
 
@@ -12,10 +14,12 @@ the results; the retro section below is filled in after the final.
 | Spain | **54.2%** |
 | Argentina | 45.8% |
 
-Ratings updated for the semifinal (England 1-2 Argentina) and the bronze
-final (France 4-6 England). Argentina's comeback win closed the Elo gap to
-26 points (Spain 2299, Argentina 2273), turning a 62/26 pre-semifinal edge
-into a near coin flip.
+**Result: Spain 1-0 Argentina** (Ferran Torres, 106', extra time). The
+model's top pick won. Going into the final the Elo gap was just 26 points
+(Spain 2299, Argentina 2273) after Argentina's comeback win over England
+closed a 62/26 pre-semifinal edge into a near coin flip, so the model gave
+Argentina a real 45.8% chance. Spain edged it in extra time, as the ratings
+narrowly favoured.
 
 ## Track record so far
 
@@ -29,7 +33,7 @@ Published 15 Jul 2026, before the second semifinal:
 
 ## Method
 
-- **Data:** all 49,506 men's internationals since 1872
+- **Data:** all 49,509 men's internationals since 1872
   ([martj42/international_results](https://github.com/martj42/international_results), CC0).
 - **Ratings:** Elo with tournament-weighted K (World Cup 60 down to friendlies 20),
   goal-margin multiplier, and +80 home advantage on non-neutral grounds,
@@ -41,16 +45,15 @@ Published 15 Jul 2026, before the second semifinal:
 - **Knockouts:** if the 90 minutes is drawn, the tie goes to extra time and
   penalties, where the favourite keeps a dampened edge
   (0.5 + 0.4 × (Elo expectancy − 0.5)).
-- **Simulation:** 200,000 Monte Carlo runs of the remaining bracket
-  (seeded, reproducible).
+- **Simulation:** 200,000 Monte Carlo runs of the final, from ratings frozen
+  before kickoff (seeded, reproducible).
 
 ## Is the model honest? Backtest on this World Cup
 
-Before predicting the future I checked the model against the 103 matches of
-this tournament already played, using only pre-match ratings:
+Across all 104 matches of the tournament, scored on pre-match ratings only:
 
-- **Accuracy 64.1%** (picking the modal outcome of win/draw/win)
-- **Log loss 0.837** vs 1.099 for uniform guessing
+- **Accuracy 64.4%** (picking the modal outcome of win/draw/win)
+- **Log loss 0.838** vs 1.099 for uniform guessing
 - Calibration is close to the diagonal — when the model says 70%, it happens
   roughly 70% of the time:
 
@@ -67,14 +70,18 @@ since 2018:
 
 ![Elo trajectories](outputs/elo_trajectories.png)
 
-## Retro (to be completed after the final on 19 Jul 2026)
+## Retro
 
-- Semifinal result vs prediction: model gave Argentina 62.4%; Argentina won
-  2-1. Correct.
-- Final result vs prediction: _pending_
-- What the model missed: England's bronze-final 6-4 was the highest scoring
-  World Cup match since 1982; a team-level Elo model carries no signal about
-  a dead-rubber goal fest.
+- Semifinal, England vs Argentina: model gave Argentina 62.4%; Argentina won
+  2-1. **Correct.**
+- Final, Spain vs Argentina: model gave Spain 54.2%; Spain won 1-0 in extra
+  time. **Correct top pick**, though the model rated it close to a coin flip
+  and the match bore that out (0-0 through 90 minutes, settled by a 106th
+  minute Ferran Torres goal after Enzo Fernandez was sent off).
+- What the model could not see: England's bronze-final 6-4 was the highest
+  scoring World Cup match since 1982; a team-level Elo model carries no signal
+  about a dead-rubber goal fest, and it says nothing about red cards or which
+  substitute scores in extra time.
 
 ## Limitations
 
